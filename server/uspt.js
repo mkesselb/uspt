@@ -40,9 +40,8 @@ server.listen(port, function(err){
 //TODO: also support https -> options!
 //https.createServer(options, app).listen(443);
 
+//TODO: validate input - also client side? html/js "validator"?
 //TODO: db connection
-//TODO: convert birthday to age
-//TODO: convert date.now() to a timestamp for db
 io.on('connection', function(socket){
 	logger.info('user connected');
 	
@@ -52,27 +51,39 @@ io.on('connection', function(socket){
 		//get login data from json
 		logger.info('login data received: ' + JSON.stringify(data));
 		
+		//TODO: convert birthday to age
+		//TODO: convert date.now() to a timestamp for db
 		user.sex = data.sex;
 		user.age = data.birthday;
 		user.institution = data.institution;
 		user.skey = data.survey_key;
 		user.date = Date.now();
 		
-		logger.info('new user: ' + JSON.stringify(user));
-		
 		var hash = crypto.createHash('sha512');
 		hash.update(data.fname + data.lname + data.sex + data.birthday + data.institution + data.survey_key);
 		var hash_hex = hash.digest('hex');
 		
-		logger.info('hash value: ' + hash_hex);
+		user.hash = hash_hex;
+		logger.info('new user: ' + JSON.stringify(user));
+		
+		//TODO: check in db to find user, create survey entry
 		
 		socket.emit('login-success', {hash: hash_hex});
 	});
 	
-	
+	socket.on('survey', function(data){
+		//get survey data from json
+		logger.info('survey data received: ' + JSON.stringify(data));
+		
+		user.answer = data.f1 + "," + data.f2;
+		logger.info('updated user: ' + JSON.stringify(user));
+		
+		//TODO: save to db, complete survey entry
+		
+		socket.emit('survey-success');
+	});
 	
 	socket.on('disconnect', function(){
 		logger.info('user disconnected');
 	});
 });
-

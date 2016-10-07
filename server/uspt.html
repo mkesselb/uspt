@@ -8,8 +8,6 @@
 		
 		<h3>Participate in personality study:</h3>
 		
-		<div id=hashtoken></div>
-		
 		<form id="formLogin">
 			First name: <br>
 			<input type="text" id="fname" maxlength="20"> <br> 
@@ -38,6 +36,24 @@
 			<button type="button" id="button-login">login</button>
 		</form>
 		
+		<div id="survey">
+			<div id="hashtoken"></div>
+			<br>
+			<form id="formSurvey">
+				Factor1: <br>
+				<input type="number" id="f1" min="-5" max="5" step="1"> <br>
+				<br>
+				
+				Factor2: <br>
+				<input type="number" id="f2" min="-5" max="5" step="1"> <br>
+				<br>
+				
+				<button type="button" id="button-survey">complete survey</button>
+			</form>
+		</div>
+		
+		<div id="completion"></div>
+		
 		<p>uspt - university students personality testing</p>
 		
 		<script>
@@ -45,9 +61,11 @@
 			var socket = io.connect();
 			
 			$('#formLogin').show();
-			$('#hashtoken').hide();
+			$('#survey').hide();
+			$('#completion').hide();
 			
 			$('#button-login').click(function(){
+				//write login data to server
 				socket.emit('login', 
 				{fname: $('#fname').val(),
 				lname: $('#lname').val(),
@@ -59,8 +77,21 @@
 			
 			socket.on('login-success', function(data){
 				$('#formLogin').hide();
-				$('#hashtoken').show();
-				$('#hashtoken').append('hash token:' + data.hash);
+				$('#survey').show();
+				$('#hashtoken').append('your hash token:' + data.hash);
+			});
+			
+			$('#button-survey').click(function(){
+				//write survey data to server
+				socket.emit('survey', 
+				{f1: $('#f1').val(),
+				f2: $('#f2').val()});
+			});
+			
+			socket.on('survey-success', function(){
+				$('#survey').hide();
+				$('#completion').show();
+				$('#completion').append('thank you for completing the survey. you may close the window now');
 			});
 		});
 		</script>
