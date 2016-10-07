@@ -1,12 +1,16 @@
 <html>
+	<meta charset="utf-8">
 	<title>uspt prototype</title>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
 	<body>
 		<h1>uspt prototype</h1>
 		
 		<h3>Participate in personality study:</h3>
 		
-		<!-- todo: websocket to server! hang in js on submit... -->
-		<form>
+		<div id=hashtoken></div>
+		
+		<form id="formLogin">
 			First name: <br>
 			<input type="text" id="fname" maxlength="20"> <br> 
 			<br>
@@ -31,9 +35,34 @@
 			<input type="text" id="skey" maxlength="20"> <br>
 			<br>
 			
-			<input type="submit" id="submit-login" value="login">
-		</form>		
+			<button type="button" id="button-login">login</button>
+		</form>
 		
 		<p>uspt - university students personality testing</p>
+		
+		<script>
+		$(document).ready(function(){
+			var socket = io.connect();
+			
+			$('#formLogin').show();
+			$('#hashtoken').hide();
+			
+			$('#button-login').click(function(){
+				socket.emit('login', 
+				{fname: $('#fname').val(),
+				lname: $('#lname').val(),
+				sex: $('#sex').val(),
+				birthday: $('#bday').val(),
+				institution: $('#inst').val(),
+				survey_key: $('#skey').val()});
+			});
+			
+			socket.on('login-success', function(data){
+				$('#formLogin').hide();
+				$('#hashtoken').show();
+				$('#hashtoken').append('hash token:' + data.hash);
+			});
+		});
+		</script>
 	</body>
 </html>
