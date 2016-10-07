@@ -5,7 +5,6 @@
 var mysql = require('mysql');
 var fs = require('fs');
 var crypto = require('crypto');
-var winston = require('winston')
 
 var express = require('express');
 var https = require('https');
@@ -15,12 +14,14 @@ var app = express();
 var server = http.createServer(app);
 var io = require('socket.io')(server);
 
-var logger = new (winston.Logger)({
-    transports: [
-      new (winston.transports.Console)(),
-      new (winston.transports.File)({ filename: 'uspt.log' })
-    ]
+var log4js = require('log4js');
+log4js.configure({
+	  appenders: [
+	    { type: 'console' },
+	    { type: 'file', filename: 'uspt.log'}
+	  ]
 });
+var logger = log4js.getLogger();
 
 app.get('/', function(req, res){
 	logger.info('request served');
@@ -64,9 +65,10 @@ io.on('connection', function(socket){
 		user.date = Date.now();
 		
 		var hash = crypto.createHash('sha512');
-		hash.update(data.fname + data.lname + data.sex + data.birthday + data.institution + data.survey_key);
+		hash.update(data.fname + data.lname + data.sex + data.birthday /*+ data.institution + data.survey_key*/);
 		var hash_hex = hash.digest('hex');
 		
+		//TODO: is hash-data enough?
 		user.hash = hash_hex;
 		logger.info('new user: ' + JSON.stringify(user));
 		

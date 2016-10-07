@@ -1,11 +1,11 @@
 {
   "name": "uspt",
   "description": "university students personality testing - research semester project - aau klagenfurt",
-  "version": "0.0.1a",
+  "version": "0.0.2",
   "private": true,
   "dependencies": {
     "express": "4.14.0",
-	"winston": "2.2.0",
+	"log4js": "0.6.38",
 	"connect": "3.0.2",
 	"mysql": "2.11.1",
 	"socket.io": "1.5.0"
