@@ -5,6 +5,7 @@
 var mysql = require('mysql');
 var fs = require('fs');
 
+var winston = require('winston')
 var express = require('express');
 var https = require('https');
 var http = require('http');
@@ -13,16 +14,16 @@ var app = express();
 var server = http.createServer(app);
 var io = require('socket.io')(server);
 
-//TODO: setup winston logging
-
-app.get("/", function(req, res){
-	console.log("request served");
-	fs.createReadStream('uspt.html').pipe(res);
+var logger = new (winston.Logger)({
+    transports: [
+      new (winston.transports.Console)(),
+      new (winston.transports.File)({ filename: 'uspt.log' })
+    ]
 });
 
-io.on('connection', function(){
-	//TODO: connect to client websocket 
-	
+app.get('/', function(req, res){
+	logger.info('request served');
+	fs.createReadStream('uspt.html').pipe(res);
 });
 
 var port = 80;
@@ -32,7 +33,14 @@ if(process.argv.length > 2){
 }
 
 server.listen(port, function(err){
-	console.log("server listening on port " + port + "!");
+	logger.info('http server listening on port ' + port + '!');
 });
-//TODO: also support http -> options!
+
+//TODO: also support https -> options!
 //https.createServer(options, app).listen(443);
+
+io.on('connection', function(){
+	//TODO: connect to client websocket 
+	
+});
+
