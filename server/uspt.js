@@ -40,6 +40,10 @@ server.listen(port, function(err){
 //TODO: also support https -> options!
 //https.createServer(options, app).listen(443);
 
+//TODO: handle case where study is cancelled midway by leaving socket (exit window, reload...)
+// -> to do so, its probably needed to save undone entries to db (completed 0 --> 1)
+// --> or yet better, save to db only after completion?
+
 //TODO: validate input - also client side? html/js "validator"?
 //TODO: db connection
 io.on('connection', function(socket){
