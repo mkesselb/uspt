@@ -2,18 +2,20 @@
  * starting the listening server, 
  * binding socket.io to listen to websocket connections from the single-page client */
 
-var mysql = require('mysql');
-var fs = require('fs');
-var crypto = require('crypto');
-
 var express = require('express');
+var crypto = require('crypto');
+var mysql = require('mysql');
 var https = require('https');
 var http = require('http');
-var app = express();
+var fs = require('fs');
 
+var app = express();
 var server = http.createServer(app);
 var io = require('socket.io')(server);
 
+var db = require('./db/db.js');
+
+/* configure logging */
 var log4js = require('log4js');
 log4js.configure({
 	  appenders: [
@@ -22,6 +24,26 @@ log4js.configure({
 	  ]
 });
 var logger = log4js.getLogger();
+
+/* building db connection */
+//creating connection pool
+var pool = mysql.createPool({
+	host     : 'localhost',
+	user     : 'root',
+	password : 'root',
+	database : 'uspt'
+});
+
+pool.getConnection(function(err, connection){
+	//try to establish one connection to see whether db can be reached
+	if (err){
+		logger.error('error connecting to db: ' + err.toString());
+		throw err;
+	}
+
+	logger.error('connected to db');
+	connection.release();
+});
 
 app.get('/', function(req, res){
 	logger.info('request served');
@@ -46,7 +68,7 @@ server.listen(port, function(err){
 // --> or yet better, save to db only after completion?
 
 //TODO: validate input - also client side? html/js "validator"?
-//TODO: db connection
+//TODO: error codes for client
 io.on('connection', function(socket){
 	logger.info('user connected');
 	
@@ -56,12 +78,12 @@ io.on('connection', function(socket){
 		//get login data from json
 		logger.info('login data received: ' + JSON.stringify(data));
 		
-		//TODO: convert birthday to age
+		//TODO: convert birthday to age / or use date for birthday, then easy to compute age from date.now() 
 		//TODO: convert date.now() to a timestamp for db
 		user.sex = data.sex;
 		user.age = data.birthday;
 		user.institution = data.institution;
-		user.skey = data.survey_key;
+		user.survey_key = data.survey_key;
 		user.date = Date.now();
 		
 		var hash = crypto.createHash('sha512');
@@ -72,16 +94,45 @@ io.on('connection', function(socket){
 		user.hash = hash_hex;
 		logger.info('new user: ' + JSON.stringify(user));
 		
-		//TODO: check in db to find user, create survey entry
-		
-		socket.emit('login-success', {hash: hash_hex});
+		//create user in db, if not exists
+		pool.getConnection(function(err, connection){
+			if(err){
+				logger.error("error getting connection from pool: " + err.toString()); 
+				socket.emit({"error" : 403});
+				return;
+			}
+			
+			var n_user = {}
+			n_user.first_name = data.fname;
+			n_user.last_name = data.lname;
+			n_user.sex = data.sex;
+			n_user.birthday = data.birthday;
+			
+			db.createUser(connection, n_user, function(err, result){
+				if(err){
+					//check if err contains known db error code
+					if(err.error){
+						logger.error('error posting to db: ' + JSON.stringify(err));
+						socket.emit(err);
+					} else{
+						//else send unspecified db error
+						logger.error('error posting to db: ' + err.toString());
+						socket.emit({'error' : 400});
+					}
+				} else{
+					user.id = result.student_id;
+					socket.emit('login-success', {hash: hash_hex});
+				}
+			});
+			connection.release();
+		});
 	});
 	
 	socket.on('survey', function(data){
 		//get survey data from json
 		logger.info('survey data received: ' + JSON.stringify(data));
 		
-		user.answer = data.f1 + "," + data.f2;
+		user.answer = data.f1 + ',' + data.f2;
 		logger.info('updated user: ' + JSON.stringify(user));
 		
 		//TODO: save to db, complete survey entry
