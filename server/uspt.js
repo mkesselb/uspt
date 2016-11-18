@@ -24,6 +24,7 @@ log4js.configure({
 	  ]
 });
 var logger = log4js.getLogger();
+db.setLogger(logger);
 
 /* building db connection */
 //creating connection pool
@@ -41,7 +42,7 @@ pool.getConnection(function(err, connection){
 		throw err;
 	}
 
-	logger.error('connected to db');
+	logger.info('connected to db');
 	connection.release();
 });
 
@@ -98,7 +99,7 @@ io.on('connection', function(socket){
 		pool.getConnection(function(err, connection){
 			if(err){
 				logger.error("error getting connection from pool: " + err.toString()); 
-				socket.emit({"error" : 403});
+				socket.emit('err', {"error" : 403});
 				return;
 			}
 			
@@ -113,11 +114,11 @@ io.on('connection', function(socket){
 					//check if err contains known db error code
 					if(err.error){
 						logger.error('error posting to db: ' + JSON.stringify(err));
-						socket.emit(err);
+						socket.emit('err', err);
 					} else{
 						//else send unspecified db error
 						logger.error('error posting to db: ' + err.toString());
-						socket.emit({'error' : 400});
+						socket.emit('err', {'error' : 400});
 					}
 				} else{
 					user.id = result.student_id;
@@ -128,6 +129,8 @@ io.on('connection', function(socket){
 		});
 	});
 	
+	//TODO: make it possible to unlock specific survey keys (-> admin portal?)
+	//e.g. table open_surveys
 	socket.on('survey', function(data){
 		//get survey data from json
 		logger.info('survey data received: ' + JSON.stringify(data));
@@ -135,9 +138,42 @@ io.on('connection', function(socket){
 		user.answer = data.f1 + ',' + data.f2;
 		logger.info('updated user: ' + JSON.stringify(user));
 		
-		//TODO: save to db, complete survey entry
-		
-		socket.emit('survey-success');
+		pool.getConnection(function(err, connection){
+			if(err){
+				logger.error("error getting connection from pool: " + err.toString()); 
+				socket.emit('err', {"error" : 403});
+				return;
+			}
+			
+			var s_user = {};
+			s_user.student_id = user.id;
+			s_user.survey_key = user.survey_key;
+			//s_user.survey_key = user.date; //TODO: if same date is saved, survey-data could be linked to survey-participant?!
+			
+			db.writeSurveyParticipation(connection, s_user, function(err, result){
+				if(err){
+					//check if err contains known db error code
+					if(err.error){
+						logger.error('error posting to db: ' + JSON.stringify(err));
+						socket.emit('err', err);
+					} else{
+						//else send unspecified db error
+						logger.error('error posting to db: ' + err.toString());
+						socket.emit('err', {'error' : 400});
+					}
+				} else{
+					if(result.result){
+						//error code is set, participation twice not possible
+						socket.emit('err', {'error' : result.result})
+					}
+				}
+			});
+			
+			//TODO: write survey data
+			socket.emit('survey-success');
+			
+			connection.release();
+		});
 	});
 	
 	socket.on('disconnect', function(){

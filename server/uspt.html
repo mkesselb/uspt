@@ -17,10 +17,12 @@
 			<input type="text" id="lname" maxlength="20"> <br>
 			<br>
 			
+			<!-- TODO: dropdown for sex -->
 			Sex: <br>
 			<input type="text" id="sex" maxlength="1"> (Format: m / f)<br>
 			<br>
 			
+			<!-- TODO: datepicker for birthday -->
 			Birthday: <br>
 			<input type="text" id="bday" maxlength="8"> (Format: ddmmyyyy)<br>
 			<br>
@@ -53,6 +55,8 @@
 		</div>
 		
 		<div id="completion"></div>
+		
+		<div id="error"></div>
 		
 		<p>uspt - university students personality testing</p>
 		
@@ -93,6 +97,10 @@
 				$('#completion').show();
 				$('#completion').append('thank you for completing the survey. you may close the window now');
 			});
+			
+			socket.on('err', function(err){
+				$('#error').append('error on server: ' + JSON.stringify(err) + '<p>');
+			}); 
 		});
 		</script>
 	</body>
