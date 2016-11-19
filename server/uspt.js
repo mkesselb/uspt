@@ -68,6 +68,9 @@ server.listen(port, function(err){
 // -> to do so, its probably needed to save undone entries to db (completed 0 --> 1)
 // --> or yet better, save to db only after completion?
 
+//TODO: make data objects, e.g. for user, surveyData etc.
+//TODO: split socket code in multiple files, one for each 'channel'
+
 //TODO: validate input - also client side? html/js "validator"?
 //TODO: error codes for client
 io.on('connection', function(socket){
@@ -80,7 +83,7 @@ io.on('connection', function(socket){
 		logger.info('login data received: ' + JSON.stringify(data));
 		
 		//TODO: convert birthday to age / or use date for birthday, then easy to compute age from date.now() 
-		//TODO: convert date.now() to a timestamp for db
+		//TODO: convert date.now() to a timestamp for db /\ for now, use db current timestamp
 		user.sex = data.sex;
 		user.age = data.birthday;
 		user.institution = data.institution;
@@ -98,8 +101,8 @@ io.on('connection', function(socket){
 		//create user in db, if not exists
 		pool.getConnection(function(err, connection){
 			if(err){
-				logger.error("error getting connection from pool: " + err.toString()); 
-				socket.emit('err', {"error" : 403});
+				logger.error('error getting connection from pool: ' + err.toString()); 
+				socket.emit('err', {'error' : 403});
 				return;
 			}
 			
@@ -140,11 +143,12 @@ io.on('connection', function(socket){
 		
 		pool.getConnection(function(err, connection){
 			if(err){
-				logger.error("error getting connection from pool: " + err.toString()); 
-				socket.emit('err', {"error" : 403});
+				logger.error('error getting connection from pool: ' + err.toString()); 
+				socket.emit('err', {'error' : 403});
 				return;
 			}
 			
+			var success = false;
 			var s_user = {};
 			s_user.student_id = user.id;
 			s_user.survey_key = user.survey_key;
@@ -162,16 +166,32 @@ io.on('connection', function(socket){
 						socket.emit('err', {'error' : 400});
 					}
 				} else{
-					if(result.result){
-						//error code is set, participation twice not possible
-						socket.emit('err', {'error' : result.result})
-					}
+					//write survey data
+					var surveyData = {};
+					surveyData.survey_hash = user.hash;
+					surveyData.survey_key = user.survey_key;
+					surveyData.survey_answers = user.answer; //answer is now csv
+					surveyData.sex = user.sex;
+					surveyData.age = user.age;
+					surveyData.institution = user.institution;
+					
+					db.writeSurvey(connection, surveyData, function(err, result){
+						if(err){
+							//check if err contains known db error code
+							if(err.error){
+								logger.error('error posting to db: ' + JSON.stringify(err));
+								socket.emit('err', err);
+							} else{
+								//else send unspecified db error
+								logger.error('error posting to db: ' + err.toString());
+								socket.emit('err', {'error' : 400});
+							}
+						} else{
+							socket.emit('survey-success');
+						}
+					});
 				}
 			});
-			
-			//TODO: write survey data
-			socket.emit('survey-success');
-			
 			connection.release();
 		});
 	});

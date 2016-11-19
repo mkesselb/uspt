@@ -23,9 +23,8 @@ function createUser(dbConnection, userData, callback){
 		if(err){
 			return callback(err);
 		}
-		if(result.length > 0){
-			res = result; 
-			return callback(null, {"student_id" : result[0].student_id});
+		if(result.length > 0){ 
+			return callback(null, {'student_id' : result[0].student_id});
 		} else{
 			//if user does not exist, create the user, then query and return id
 			dbConnection.query('insert into students set ?', userData, function(err, result){
@@ -34,7 +33,7 @@ function createUser(dbConnection, userData, callback){
 				}
 				
 				logger.info('user created! id: ' + result.insertId);
-				return callback(null, {"student_id" : result.insertId});
+				return callback(null, {'student_id' : result.insertId});
 			});
 		}
 	});
@@ -58,6 +57,14 @@ function getUser(dbConnection, userData, callback){
 };
 
 function writeSurveyParticipation(dbConnection, userData, callback){
+	//validate input parameters
+	if(!validator.validateID(userData.student_id) || 
+			!validator.validateText(userData.survey_key, 1, 20)){
+				
+		//malformed userData
+		return callback({'error' : 300});
+	}
+	
 	//only write survey participation if pair of (student_id, survey_key) does not exist yet
 	//-> only one participation per survey allowed
 	var query = 'select student_id from survey_participants where ' +
@@ -72,7 +79,7 @@ function writeSurveyParticipation(dbConnection, userData, callback){
 		if(result.length > 0){
 			//student already participated with given survey_key
 			logger.info('participation not allowed twice');
-			return callback(null, {"result" : 500});
+			return callback({'error' : 500});
 		} else{
 			//write participation
 			dbConnection.query('insert into survey_participants set ?', userData, function(err, result){
@@ -81,14 +88,37 @@ function writeSurveyParticipation(dbConnection, userData, callback){
 				}
 				
 				logger.info('participation written');
-				return callback(null, {});
+				return callback(null, {'success' : 1});
 			});
 		}
 	});
 };
 
-function completeSurvey(dbConnection, surveyData, callback){
-	//TODO: write survey data
+function writeSurvey(dbConnection, surveyData, callback){
+	//validate input parameters
+	if(!validator.validateText(surveyData.survey_hash, 128, 128) || 
+			!validator.validateText(surveyData.survey_key, 1, 20) ||
+			!validator.validateText(surveyData.institution, 1, 20) ||
+			!validator.validateText(surveyData.sex, 1, 1) || 
+			!validator.validateText(surveyData.age, 8, 8)){
+		
+		//malformed userData
+		return callback({'error' : 300});
+	}
+	
+	//write survey data
+	//TODO: it could be possible to check whether the pair of survey_hash+survey_key is already saved
+	//-> depending on, whether it should be allowed to do survey twice with same key or not
+	//--> probably not, but now it is already checked before insertion...
+	
+	dbConnection.query('insert into survey_data set ?', surveyData, function(err, result){
+		if(err){
+			return callback(err);
+		}
+		
+		logger.info('survey data written: ' + JSON.stringify(surveyData));
+		return callback(null, {'success' : 1});
+	});
 };
 
 function establishHashMapping(dbConnection, requestData, callback){
@@ -98,7 +128,7 @@ function establishHashMapping(dbConnection, requestData, callback){
 module.exports = {
 		setLogger				:	setLogger,
 		createUser				:	createUser,
-		completeSurvey			:	completeSurvey,
+		writeSurvey				:	writeSurvey,
 		establishHashMapping	:	establishHashMapping,
 		writeSurveyParticipation:	writeSurveyParticipation
 };

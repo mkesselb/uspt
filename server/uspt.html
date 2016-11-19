@@ -95,7 +95,7 @@
 			socket.on('survey-success', function(){
 				$('#survey').hide();
 				$('#completion').show();
-				$('#completion').append('thank you for completing the survey. you may close the window now');
+				$('#completion').append('thank you for completing the survey. you may close the window now!');
 			});
 			
 			socket.on('err', function(err){
