@@ -47,8 +47,13 @@ pool.getConnection(function(err, connection){
 });
 
 app.get('/', function(req, res){
-	logger.info('request served');
+	logger.info('request served on /');
 	fs.createReadStream('uspt.html').pipe(res);
+});
+
+app.get('/info', function(req, res){
+	logger.info('request served on /info');
+	res.send('universal students personality testing - research project - aau klagenfurt');
 });
 
 var port = 80;
@@ -70,6 +75,8 @@ server.listen(port, function(err){
 
 //TODO: make data objects, e.g. for user, surveyData etc.
 //TODO: split socket code in multiple files, one for each 'channel'
+//TODO: after split of code in multiple files, also make http endpoints?
+//(to detach from sockets, e.g. when used in plugins or moodle)
 
 //TODO: validate input - also client side? html/js "validator"?
 //TODO: error codes for client
@@ -82,8 +89,6 @@ io.on('connection', function(socket){
 		//get login data from json
 		logger.info('login data received: ' + JSON.stringify(data));
 		
-		//TODO: convert birthday to age / or use date for birthday, then easy to compute age from date.now() 
-		//TODO: convert date.now() to a timestamp for db /\ for now, use db current timestamp
 		user.sex = data.sex;
 		user.age = data.birthday;
 		user.institution = data.institution;
@@ -91,10 +96,11 @@ io.on('connection', function(socket){
 		user.date = Date.now();
 		
 		var hash = crypto.createHash('sha512');
-		hash.update(data.fname + data.lname + data.sex + data.birthday /*+ data.institution + data.survey_key*/);
+		hash.update(data.fname + data.lname + data.sex + data.birthday + data.pinfo /*+ data.institution + data.survey_key*/);
 		var hash_hex = hash.digest('hex');
 		
 		//TODO: is hash-data enough?
+		//additional data is needed, which only the user knows and is not saved in database
 		user.hash = hash_hex;
 		logger.info('new user: ' + JSON.stringify(user));
 		
@@ -170,9 +176,9 @@ io.on('connection', function(socket){
 					var surveyData = {};
 					surveyData.survey_hash = user.hash;
 					surveyData.survey_key = user.survey_key;
-					surveyData.survey_answers = user.answer; //answer is now csv
+					surveyData.survey_answers = user.answer; //answer is now csv, to support different test structures
 					surveyData.sex = user.sex;
-					surveyData.age = user.age;
+					surveyData.age = user.age; //TODO: change this to birthday? (invariant to time)
 					surveyData.institution = user.institution;
 					
 					db.writeSurvey(connection, surveyData, function(err, result){

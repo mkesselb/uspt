@@ -27,6 +27,11 @@
 			<input type="text" id="bday" maxlength="8"> (Format: ddmmyyyy)<br>
 			<br>
 			
+			<!-- TODO: use additional personal information, that is not saved in db and is hard for non-same users to know? -->
+			Personal information: <br>
+			<input type="text" id="pinfo" maxlength="20"> <br>
+			<br>
+			
 			Institution: <br>
 			<input type="text" id="inst" maxlength="20"> <br>
 			<br>
@@ -76,7 +81,8 @@
 				sex: $('#sex').val(),
 				birthday: $('#bday').val(),
 				institution: $('#inst').val(),
-				survey_key: $('#skey').val()});
+				survey_key: $('#skey').val(),
+				p_info: $('#pinfo').val()});
 			});
 			
 			socket.on('login-success', function(data){

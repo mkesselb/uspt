@@ -1,6 +1,6 @@
 {
   "name": "uspt",
-  "description": "university students personality testing - research semester project - aau klagenfurt",
+  "description": "universal students personality testing - research project - aau klagenfurt",
   "version": "0.0.2",
   "private": true,
   "dependencies": {

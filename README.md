@@ -1,2 +1,2 @@
 # uspt
-University Students Personality Testing. Research semester project of AAU Klagenfurt. 
+Universal Students Personality Testing. Research project of AAU Klagenfurt. 
