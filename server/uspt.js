@@ -96,7 +96,7 @@ io.on('connection', function(socket){
 		user.date = Date.now();
 		
 		var hash = crypto.createHash('sha512');
-		hash.update(data.fname + data.lname + data.sex + data.birthday + data.pinfo /*+ data.institution + data.survey_key*/);
+		hash.update(data.fname + data.lname + data.sex + data.birthday + data.p_info /*+ data.institution + data.survey_key*/);
 		var hash_hex = hash.digest('hex');
 		
 		//TODO: is hash-data enough?
