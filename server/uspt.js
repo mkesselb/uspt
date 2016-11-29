@@ -14,6 +14,7 @@ var server = http.createServer(app);
 var io = require('socket.io')(server);
 
 var db = require('./db/db.js');
+var SurveyData = require('./dataObjects/surveyData');
 
 /* configure logging */
 var log4js = require('log4js');
@@ -46,16 +47,6 @@ pool.getConnection(function(err, connection){
 	connection.release();
 });
 
-app.get('/', function(req, res){
-	logger.info('request served on /');
-	fs.createReadStream('uspt.html').pipe(res);
-});
-
-app.get('/info', function(req, res){
-	logger.info('request served on /info');
-	res.send('universal students personality testing - research project - aau klagenfurt');
-});
-
 var port = 80;
 if(process.argv.length > 2){
 	//assuming that argument on index 2 is a specified port
@@ -80,10 +71,40 @@ server.listen(port, function(err){
 
 //TODO: validate input - also client side? html/js "validator"?
 //TODO: error codes for client
+
+//TODO: if using auth-tokens for survey start, how to configure auth-tokens?
+//maybe through an admin interface?
+
+//TODO: date for survey data + participation data? might be used to link survey to participant... 
+
+app.get('/', function(req, res){
+	logger.info('request served on /');
+	fs.createReadStream('uspt.html').pipe(res);
+});
+
+app.get('/info', function(req, res){
+	logger.info('request served on /info');
+	res.send('universal students personality testing - research project - aau klagenfurt');
+});
+
 io.on('connection', function(socket){
 	logger.info('user connected');
 	
 	var user = {};
+	
+	socket.on('auth', function(data){
+		//support auth-token to begin survey
+		logger.info('auth data received: ' + JSON.stringify(data));
+		
+		//TODO: check in db for open surveys / corresponding auth_keys
+		//TODO: survey_key could be set (queried from db) with auth_key
+		
+		if(data.auth_key.length > 0){
+			socket.emit('auth-success');
+		} else{
+			socket.emit('auth-fail');
+		}
+	});
 	
 	socket.on('login', function(data){
 		//get login data from json
@@ -96,11 +117,9 @@ io.on('connection', function(socket){
 		user.date = Date.now();
 		
 		var hash = crypto.createHash('sha512');
-		hash.update(data.fname + data.lname + data.sex + data.birthday + data.p_info /*+ data.institution + data.survey_key*/);
+		hash.update(data.fname + data.lname + data.sex + data.birthday + data.p_info_select + data.p_info);
 		var hash_hex = hash.digest('hex');
 		
-		//TODO: is hash-data enough?
-		//additional data is needed, which only the user knows and is not saved in database
 		user.hash = hash_hex;
 		logger.info('new user: ' + JSON.stringify(user));
 		
@@ -158,7 +177,7 @@ io.on('connection', function(socket){
 			var s_user = {};
 			s_user.student_id = user.id;
 			s_user.survey_key = user.survey_key;
-			//s_user.survey_key = user.date; //TODO: if same date is saved, survey-data could be linked to survey-participant?!
+			//s_user.date = user.date; //TODO: if same date is saved, survey-data could be linked to survey-participant?!
 			
 			db.writeSurveyParticipation(connection, s_user, function(err, result){
 				if(err){
@@ -173,13 +192,11 @@ io.on('connection', function(socket){
 					}
 				} else{
 					//write survey data
-					var surveyData = {};
-					surveyData.survey_hash = user.hash;
-					surveyData.survey_key = user.survey_key;
-					surveyData.survey_answers = user.answer; //answer is now csv, to support different test structures
-					surveyData.sex = user.sex;
-					surveyData.age = user.age; //TODO: change this to birthday? (invariant to time)
-					surveyData.institution = user.institution;
+					
+					//answer is now csv, to support different test structures
+					//TODO: change age to birthday? (invariant to time)
+					var surveyData = new SurveyData(user.hash, user.survey_key, user.answer, user.sex, user.age, user.institution);
+					logger.info("survey data: " + JSON.stringify(surveyData));
 					
 					db.writeSurvey(connection, surveyData, function(err, result){
 						if(err){

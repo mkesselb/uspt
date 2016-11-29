@@ -8,6 +8,14 @@
 		
 		<h3>Participate in personality study:</h3>
 		
+		<form id="formAuth">
+			Provide authentication token: <br>
+			<input type="text" id="auth" maxlength="64"><br>
+			<br>
+			
+			<button type="button" id="button-auth">authenticate</button>
+		</form>
+		
 		<form id="formLogin">
 			First name: <br>
 			<input type="text" id="fname" maxlength="20"> <br> 
@@ -17,9 +25,13 @@
 			<input type="text" id="lname" maxlength="20"> <br>
 			<br>
 			
-			<!-- TODO: dropdown for sex -->
 			Sex: <br>
-			<input type="text" id="sex" maxlength="1"> (Format: m / f)<br>
+			<select id="sex">
+				<option disabled selected value="">Select your gender</option>
+				<option value="m">Male</option>
+				<option value="f">Female</option>
+				<option value="o">Other</option>
+			</select> <br>
 			<br>
 			
 			<!-- TODO: datepicker for birthday -->
@@ -27,8 +39,16 @@
 			<input type="text" id="bday" maxlength="8"> (Format: ddmmyyyy)<br>
 			<br>
 			
-			<!-- TODO: use additional personal information, that is not saved in db and is hard for non-same users to know? -->
-			Personal information: <br>
+			<!-- select dropdown for multiple different personal information questions -->
+			Personal information (used for establishing a secure key, not saved): <br>
+			<select id="pinfo-select">
+				<option disabled selected value="">Select your personal question</option>
+				<option value="1">What was the name of your first pet?</option>
+				<option value="2">What is the first name of the person you first kissed?</option>
+				<option value="3">What was your mother's maiden name?</option>
+				<option value="4">What is your father's middle name?</option>
+				<option value="5">In what city were you born?</option>
+			</select>
 			<input type="text" id="pinfo" maxlength="20"> <br>
 			<br>
 			
@@ -66,29 +86,31 @@
 		<p>uspt - university students personality testing</p>
 		
 		<script>
+		//TODO: validate input, make sure all fields are filled
 		$(document).ready(function(){
 			var socket = io.connect();
 			
-			$('#formLogin').show();
+			$('#formAuth').show();
+			$('#formLogin').hide();
 			$('#survey').hide();
 			$('#completion').hide();
+			
+			$('#button-auth').click(function(){
+				socket.emit('auth', 
+				{auth_key: $('#auth').val()});
+			});
 			
 			$('#button-login').click(function(){
 				//write login data to server
 				socket.emit('login', 
-				{fname: $('#fname').val(),
-				lname: $('#lname').val(),
+				{fname: $('#fname').val().toLowerCase(),
+				lname: $('#lname').val().toLowerCase(),
 				sex: $('#sex').val(),
 				birthday: $('#bday').val(),
-				institution: $('#inst').val(),
-				survey_key: $('#skey').val(),
-				p_info: $('#pinfo').val()});
-			});
-			
-			socket.on('login-success', function(data){
-				$('#formLogin').hide();
-				$('#survey').show();
-				$('#hashtoken').append('your hash token:' + data.hash);
+				institution: $('#inst').val().toLowerCase(),
+				survey_key: $('#skey').val().toLowerCase(),
+				p_info_select: $('#pinfo-select').val(),
+				p_info: $('#pinfo').val().toLowerCase()});
 			});
 			
 			$('#button-survey').click(function(){
@@ -96,6 +118,21 @@
 				socket.emit('survey', 
 				{f1: $('#f1').val(),
 				f2: $('#f2').val()});
+			});
+			
+			socket.on('auth-success', function(){
+				$('#formAuth').hide();
+				$('#formLogin').show();
+			});
+			
+			socket.on('auth-fail', function(){
+				$('#error').append('authentication failed<p>');
+			});
+			
+			socket.on('login-success', function(data){
+				$('#formLogin').hide();
+				$('#survey').show();
+				$('#hashtoken').append('your hash token:' + data.hash);
 			});
 			
 			socket.on('survey-success', function(){
